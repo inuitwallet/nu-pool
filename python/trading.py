@@ -1,3 +1,27 @@
+#! /usr/bin/env python
+"""
+The MIT License (MIT)
+Copyright (c) 2015 creon (creon.nu@gmail.com)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+OR OTHER DEALINGS IN THE SOFTWARE.
+"""
+
 import os
 import sys
 import time
@@ -81,10 +105,10 @@ class PyBot(ConnectionThread):
     self.exchange = exchange
     self.unit = unit
     self.orders = []
-    self.total = { 'bid' : 0.0, 'ask' : 0.0 }
-    self.limit = target
-    self.lastlimit = { 'bid' : 0, 'ask' : 0 }
     self.target = target.copy()
+    self.total = target.copy()
+    self.limit = target.copy()
+    self.lastlimit = { 'bid' : 0, 'ask' : 0 }
     if not hasattr(PyBot, 'lock'):
       PyBot.lock = {}
     if not repr(exchange) in PyBot.lock:
@@ -161,13 +185,10 @@ class PyBot(ConnectionThread):
     return response
 
   def place_orders(self):
-    if self.ordermatch:
-      response = { 'bid' : None, 'ask' : None }
-    else:
-      try:
-        response = self.exchange.get_price(self.unit)
-      except:
-        response = { 'error': 'exception caught: %s' % sys.exc_info()[1] }
+    try:
+      response = self.exchange.get_price(self.unit)
+    except:
+      response = { 'error': 'exception caught: %s' % sys.exc_info()[1] }
     if 'error' in response:
       self.logger.error('unable to retrieve order book for %s on %s: %s', self.unit, repr(self.exchange), response['error'])
     else:
@@ -183,6 +204,9 @@ class PyBot(ConnectionThread):
           self.place('bid', devprice)
         elif self.lastlimit['bid'] != self.limit['bid']:
           self.logger.error('unable to place bid %s order at %.8f on %s: matching order at %.8f detected', self.unit, bidprice, repr(self.exchange), response['ask'])
+        elif self.ordermatch:
+          self.logger.warning('matching ask %s order at %.8f on %s', self.unit, response['ask'], repr(self.exchange))
+          self.place('bid', bidprice)
       if response['bid'] == None or response['bid'] < askprice:
         self.place('ask', askprice)
       else:
@@ -192,6 +216,9 @@ class PyBot(ConnectionThread):
           self.place('ask', devprice)
         elif self.lastlimit['ask'] != self.limit['ask']:
           self.logger.error('unable to place ask %s order at %.8f on %s: matching order at %.8f detected', self.unit, askprice, repr(self.exchange), response['bid'])
+        elif self.ordermatch:
+          self.logger.warning('matching bid %s order at %.8f on %s', self.unit, response['bid'], repr(self.exchange))
+          self.place('ask', askprice)
       self.lastlimit = self.limit.copy()
     self.requester.submit()
 
