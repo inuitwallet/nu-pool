@@ -87,25 +87,28 @@ class Bittrex(Exchange):
     response['removed'] = []
     response['amount'] = 0.0
     for order in response['result']:
-      if side == 'all' or (side == 'bid' and 'SELL' in order['OrderType']) or (side == 'ask' and 'BUY' in order['OrderType']):
+      if side == 'all' or (side == 'bid' and 'BUY' in order['OrderType']) or (side == 'ask' and 'SELL' in order['OrderType']):
         ret = self.post('/market/cancel', { 'uuid' : order['OrderUuid'] }, key, secret)
         if not ret['success'] and ret['message'] != "ORDER_NOT_OPEN":
           if not 'error' in response: response = { 'error': "" }
           response['error'] += "," + ret['message']
         else:
           response['removed'].append(order['OrderUuid'])
-          response['amount'] += order['QuantityRemaining']
-    if key in self.placed and unit in self.placed[key]:
-      for uuid in response['removed']:
-        if uuid in self.placed[key][unit]:
-          del self.placed[key][unit][self.placed[key][unit].index(uuid)]
+          response['amount'] += order['Quantity']
+    if not 'error' in response and key in self.placed and unit in self.placed[key]:
+      if side == 'all':
+        self.placed[key][unit]['bid'] = False
+        self.placed[key][unit]['ask'] = False
+      else:
+        self.placed[key][unit][side] = False
     return response
 
   def place_order(self, unit, side, key, secret, amount, price):
-    response = self.cancel_orders(unit, side, key, secret)
-    if 'error' in response: return response
-    if response['amount'] > 0.001: amount += response['amount'] - 0.001
-    if side == 'bid': amount *= (1.0 - self.fee)
+    ret = self.cancel_orders(unit, side, key, secret)
+    if 'error' in ret: return ret
+    amount += ret['amount']
+    if side == 'bid':
+      amount *= (1.0 - self.fee)
     params = { 'market' : "%s-NBT"%unit.upper(), "rate" : price, "quantity" : amount }
     response = self.post('/market/buylimit' if side == 'bid' else '/market/selllimit', params, key, secret)
     if response['success']:
@@ -113,10 +116,11 @@ class Bittrex(Exchange):
       if not key in self.placed:
         self.placed[key] = {}
       if not unit in self.placed[key]:
-        self.placed[key][unit] = []
-      self.placed[key][unit].append(response['id'])
+        self.placed[key][unit] = { 'bid' : False, 'ask' : False }
+      self.placed[key][unit][side] = response['id']
     else:
       response['error'] = response['message']
+      response['residual'] = ret['amount']
     return response
 
   def get_balance(self, unit, key, secret):
@@ -141,10 +145,12 @@ class Bittrex(Exchange):
   def create_request(self, unit, key = None, secret = None):
     if not secret or not key:
       return None, None
-    if not key in self.placed or not unit in self.placed[key]:
-      uuids = []
-    else:
-      uuids = self.placed[key][unit]
+    uuids = []
+    if key in self.placed and unit in self.placed[key]:
+      if self.placed[key][unit]['bid']:
+        uuids.append(self.placed[key][unit]['bid'])
+      if self.placed[key][unit]['ask']:
+        uuids.append(self.placed[key][unit]['ask'])
     requests = []
     signatures = []
     for uuid in uuids:
@@ -180,7 +186,7 @@ class Bittrex(Exchange):
             'id' : response['result']['OrderUuid'],
             'price' : response['result']['Limit'],
             'type' : 'ask' if 'SELL' in response['result']['Type'] else 'bid',
-            'amount' : response['result']['QuantityRemaining'] if not closed == sys.maxint else response['result']['Quantity'],
+            'amount' : response['result']['QuantityRemaining'], # if not closed == sys.maxint else response['result']['Quantity'],
             'opened' : opened,
             'closed' : closed,
             })
