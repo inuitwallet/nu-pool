@@ -26,18 +26,14 @@ import SimpleHTTPServer
 import SocketServer
 import BaseHTTPServer
 import cgi
-import logging
-import urllib
-import sys, os
-import time
-import thread
-import threading
-import sys
-from math import log, exp, ceil
+import os
+from math import ceil
 from thread import start_new_thread
+
 from exchanges import *
 from utils import *
-import config
+from python import config
+
 
 _wrappers = { 'bittrex' : Bittrex, 'poloniex' : Poloniex, 'ccedk' : CCEDK, 'bitcoincoid' : BitcoinCoId, 'bter' : BTER, 'testing' : Peatio }
 for e in config._interest:
