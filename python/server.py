@@ -32,7 +32,7 @@ from thread import start_new_thread
 
 from exchanges import *
 from utils import *
-from python import config
+import config
 
 
 _wrappers = {'bittrex': Bittrex, 'poloniex': Poloniex, 'ccedk': CCEDK, 'bitcoincoid': BitcoinCoId, 'bter': BTER,
