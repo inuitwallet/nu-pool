@@ -306,7 +306,6 @@ if __name__ == "__main__":
     logger = getlogger()
     userfile = 'pool.conf' if len(sys.argv) == 1 else sys.argv[1]
     if userfile == "-":
-        # get the user data from the command line input
         userdata = [line.strip().split('#')[0].split() for line in sys.stdin.readlines() if
                     len(line.strip().split('#')[0].split()) >= 5]
     else:

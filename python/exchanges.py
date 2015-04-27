@@ -397,7 +397,6 @@ class CCEDK(Exchange):
                   "pair_id": int(self.pair_id[unit.lower()]),
                   "amount": amount}
         response = self.post('order/new', params, key, secret)
-        print response
         if response['errors'] is True:
             response['error'] = ",".join(response['errors'].values())
         else:
