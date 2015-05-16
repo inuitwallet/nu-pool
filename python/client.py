@@ -354,8 +354,8 @@ if __name__ == "__main__":
                         bid = None
                         ask = None
                     bot = 'pybot' if not 'trading' in configdata else configdata['trading']
-                    ordermatch = False if not 'ordermatch' in configdata else (
-                        configdata['ordermatch'] in ['True', 'true', '1'])
+                    ordermatch = True if not 'ordermatch' in configdata else (
+                        configdata['ordermatch'] in ['False', 'false', '0'])
                     if 'server' in configdata:
                         if 'apikey' in configdata:
                             if 'apisecret' in configdata:
