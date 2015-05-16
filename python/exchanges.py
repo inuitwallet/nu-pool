@@ -63,13 +63,17 @@ class Bittrex(Exchange):
   def adjust(self, error):
     pass
 
-  def post(self, method, params, key, secret):
+  def post(self, method, params, key, secret, throttle = 5):
     data = 'https://bittrex.com/api/v1.1' + method + '?apikey=%s&nonce=%d&' % (key, self.nonce()) + urllib.urlencode(params)
     sign = hmac.new(secret, data, hashlib.sha512).hexdigest()
     headers = { 'apisign' : sign }
     connection = httplib.HTTPSConnection('bittrex.com', timeout = 10)
     connection.request('GET', data, headers = headers)
-    return json.loads(connection.getresponse().read())
+    response = json.loads(connection.getresponse().read())
+    if throttle > 0 and not response['success'] and 'THROTTLED' in response['message']:
+      time.sleep(2)
+      return self.post(method, params, key, secret, throttle - 1)
+    return response
 
   def get(self, method, params):
     data = 'https://bittrex.com/api/v1.1' + method + '?' + urllib.urlencode(params)
@@ -168,7 +172,7 @@ class Bittrex(Exchange):
       return { 'error' : 'missmatch between requests and signatures (%d vs %d)' % (len(data['requests']), len(signs)) }
     if len(requests) > 2:
       return { 'error' : 'too many requests received: %d' % len(requests) }
-    connection = httplib.HTTPSConnection('bittrex.com', timeout = 3)
+    connection = httplib.HTTPSConnection('bittrex.com', timeout = 5)
     for data, sign in zip(requests, signs):
       uuid = data.split('=')[-1]
       if not uuid in self.closed:
@@ -283,13 +287,13 @@ class CCEDK(Exchange):
         response = None
         if not self.pair_id:
           response = json.loads(urllib2.urlopen(urllib2.Request(
-            'https://www.ccedk.com/api/v1/stats/marketdepthfull?' + urllib.urlencode({ 'nonce' : self.nonce() }))).read())
+            'https://www.ccedk.com/api/v1/stats/marketdepthfull?' + urllib.urlencode({ 'nonce' : self.nonce() }))).read(), timeout = 15)
           for unit in response['response']['entities']:
             if unit['pair_name'][:4] == 'NBT/':
               self.pair_id[unit['pair_name'][4:]] = unit['pair_id']
         if not self.currency_id:
           response = json.loads(urllib2.urlopen(urllib2.Request(
-            'https://www.ccedk.com/api/v1/currency/list?' + urllib.urlencode({ 'nonce' : self.nonce() }))).read())
+            'https://www.ccedk.com/api/v1/currency/list?' + urllib.urlencode({ 'nonce' : self.nonce() }))).read(), timeout = 15)
           for unit in response['response']['entities']:
             self.currency_id[unit['iso'].lower()] = unit['currency_id']
       except:
@@ -419,17 +423,20 @@ class BitcoinCoId(Exchange):
 
   def __repr__(self): return "bitcoincoid"
 
+  def adjust(self, error):
+    if "Nonce must be greater than" in error: # (TODO: regex)
+      if ':' in error: error = error.split(':')[1].strip()
+      error = error.replace('.', '').split()
+      self._shift += 100.0 + (int(error[5]) - int(error[8])) / 1000.0
+    else:
+      self._shift = self._shift + 100.0
+
   def nonce(self, factor = 1000.0):
     n = int((time.time() + self._shift) * float(factor))
-    if n - self._nonce <= 100:
-      time.sleep(0.1)
-      return self.nonce(factor)
+    if n - self._nonce < 300:
+      n = self._nonce + 300
     self._nonce = n
     return n
-
-  def adjust(self, error):
-    if "Invalid nonce" in error: #(TODO: regex)
-      self._shift = min(self._shift + 100, 3600)
 
   def post(self, method, params, key, secret):
     request = { 'nonce' : self.nonce(), 'method' : method }

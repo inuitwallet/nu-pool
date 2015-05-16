@@ -34,12 +34,12 @@ import logging
 import logging.handlers
 import socket
 from math import ceil
+from thread import start_new_thread
 from exchanges import *
 from trading import *
 from utils import *
 
-_wrappers = { 'bittrex' : Bittrex() } #, 'poloniex' : Poloniex(), 'ccedk' : CCEDK(), 'bitcoincoid' : BitcoinCoId(), 'bter' : BTER(), 'testing' : Peatio() }
-
+_wrappers = { 'bittrex' : Bittrex, 'ccedk' : CCEDK, 'bitcoincoid' : BitcoinCoId, 'bter' : BTER, 'testing' : Peatio }
 _mainlogger = None
 def getlogger():
   global _mainlogger
@@ -92,7 +92,7 @@ class RequestThread(ConnectionThread):
     params.update(data)
     params.update(self.cost)
     curtime = time.time()
-    ret = self.conn.post('liquidity', params, trials = 1, timeout = 60 / self.sampling)
+    ret = self.conn.post('liquidity', params, trials = 1, timeout = 60)
     if ret['code'] != 0:
       self.trials += time.time() - curtime + 60.0 / self.sampling
       self.logger.error("submit: %s" % ret['message'])
@@ -107,7 +107,7 @@ class RequestThread(ConnectionThread):
     if ret['code'] != 0: self.logger.error("register: %s" % ret['message'])
     while self.active:
       curtime = time.time()
-      self.submit()
+      start_new_thread(self.submit, ())
       time.sleep(max(60.0 / self.sampling - time.time() + curtime, 0))
 
 
@@ -119,7 +119,7 @@ class Client(ConnectionThread):
     super(Client, self).__init__(self.conn, self.logger)
     self.basestatus = self.conn.get('status')
     self.exchangeinfo = self.conn.get('exchanges')
-    self.sampling = min(240, 3 * self.basestatus['sampling'] / 2)
+    self.sampling = min(240, 4 * self.basestatus['sampling'])
     self.users = {}
     self.lock = threading.Lock()
 
@@ -128,6 +128,8 @@ class Client(ConnectionThread):
       return False
     key = str(key)
     secret = str(secret)
+    if isinstance(_wrappers[name], type):
+      _wrappers[name] = _wrappers[name]()
     exchange = _wrappers[name]
     cost = { 'bid' : bid if bid else self.exchangeinfo[name][unit]['bid']['rate'],
              'ask' : ask if ask else self.exchangeinfo[name][unit]['ask']['rate'] }
@@ -204,7 +206,7 @@ class Client(ConnectionThread):
             newstatus = self.conn.get('status', trials = 3)
             if not 'error' in newstatus:
               basestatus = newstatus
-              sampling = min(240, 3 * self.basestatus['sampling'] / 2)
+              sampling = min(240, 4 * self.basestatus['sampling'])
           else:
             # collect user information
             effective_rate = 0.0
@@ -250,7 +252,7 @@ class Client(ConnectionThread):
                           self.logger.warning('too many rejected requests for %s on %s, adjusting nonce shift to %d',
                             unit, repr(self.users[user][unit]['request'].exchange), self.users[user][unit]['request'].exchange._shift)
                     else:
-                      if self.users[user][unit]['request'].sampling < 3 * sampling: # just send more requests
+                      if self.users[user][unit]['request'].sampling < 3 * self.sampling: # just send more requests
                         self.users[user][unit]['request'].sampling = self.users[user][unit]['request'].sampling + 1
                         self.logger.warning('increasing sampling to %d',
                           unit, repr(self.users[user][unit]['request'].exchange), self.users[user][unit]['request'].sampling)
@@ -327,7 +329,7 @@ if __name__ == "__main__":
                         client = Client(configdata['server'], logger)
                         client.set(configdata['apikey'], configdata['apisecret'], configdata['address'], name, configdata['unit'].lower(), bid, ask, bot, ordermatch)
                       else:
-                        logger.error("unknown exchange: %s", user[2])
+                        logger.error("unknown exchange: %s", name)
                     else:
                       logger.error('exchange information missing in %s', userfile)
                   else:
@@ -343,7 +345,7 @@ if __name__ == "__main__":
         else:
           logger.error('no valid user information could be found')
     except:
-      logger.error("%s could not be read", userfile)
+      logger.error("%s could not be read: %s", userfile, sys.exc_info()[1])
     if not client: sys.exit(1)
     logger.debug('starting liquidity operation with sampling %d' % client.sampling)
     client.start()

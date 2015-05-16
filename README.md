@@ -11,6 +11,8 @@ Participating in the NuPool has several risks:
 
 - **Connection Issues:** If you are running an automated trading bot then it requires a stable internet connection to perform actions. If your internet is suddenly broken, or your computer restarts without closing the client software correctly, then there might be open orders left on the exchange which won't get closed until the connection is reestablished.
 
+- **Failure of the Nu project:** Since payouts are performed in NBT and your funds may be transformed to NBT, a failure of the Nu project would lead to a loss of value of your funds.
+
 **Important:** The pool operators are never in control of your funds and are not responsible for any financial loss that might occur because of any reason whatsoever. Taking these risks is what you are getting compensated for. Please make sure that you understand what kind of service you are providing during participation and don't use any money you can not afford to lose.
 
 **Trading Bot**:
@@ -20,3 +22,5 @@ PLEASE BE AWARE THAT AUTOMATED TRADING WITH THIS SOFTWARE MAY BE RISKY, ADDICTIV
 By using any software in this package you declare to have accepted the afore-mentioned risks.
 
 And to repeat: Neither the developer of this software, nor the liquidity operation on NuPool.net is in any way related to the official Nu core-team.
+
+Also note, that the developer of this software does not participate in any liquidity operation that uses this software. No claims, in any way, can be made against the developer of this software package.

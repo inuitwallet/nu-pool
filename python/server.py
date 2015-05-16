@@ -162,6 +162,7 @@ class User(threading.Thread):
     self.logger = logger if logger else logging.getLogger('null')
     self.requests = []
     self.daemon = True
+    self.cancel = False
     self.history = []
     self.page = 1
     self.record()
@@ -207,7 +208,7 @@ class User(threading.Thread):
             orders = self.exchange.validate_request(self.key, self.unit, request[0], request[1])
           except:
             orders = { 'error' : 'exception caught: %s' % sys.exc_info()[1]}
-          if not 'error' in orders:
+          if not 'error' in orders and not self.cancel:
             valid = { 'bid': [], 'ask' : [] }
             price = self.pricefeed.price(self.unit)
             last_error = ''
@@ -238,14 +239,17 @@ class User(threading.Thread):
               self.last_errors.append("")
               break
           else:
+            if self.cancel:
+              orders = { 'error': 'request handling canceled' }
             res = 'r'
-            self.last_errors.append("unable to validate request: " + orders['error'])
-            if rid + 1 == len(self.requests):
+            if rid + 1 == len(requests) or self.cancel:
+              self.last_errors.append("unable to validate request: " + orders['error'])
               self.logger.warning("unable to validate request %d/%d for user %s at exchange %s on unit %s: %s",
-                rid + 1, len(self.requests), self.key, repr(self.exchange), self.unit, orders['error'])
-            for side in [ 'bid', 'ask' ]:
-              del self.liquidity[side][0]
-              self.liquidity[side].append([])
+                rid + 1, len(requests), self.key, repr(self.exchange), self.unit, orders['error'])
+              for side in [ 'bid', 'ask' ]:
+                del self.liquidity[side][0]
+                self.liquidity[side].append([])
+          if self.cancel: break
       else:
         self.last_errors.append("no request received")
         for side in [ 'bid', 'ask' ]:
@@ -256,11 +260,13 @@ class User(threading.Thread):
       self.lock.release()
 
   def validate(self):
+    self.cancel = False
     try: self.trigger.release()
     except thread.error: pass # user did not finish last request in time
 
   def finish(self):
     if self.active:
+      self.cancel = True
       try:
         self.lock.acquire()
         self.lock.release()
