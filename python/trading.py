@@ -370,7 +370,7 @@ class PyBot(ConnectionThread):
                                                         "increasing tier 1 %s limit of %s on %s from %.8f to %.8f",
                                                         side, self.unit, repr(self.exchange), self.total[side],
                                                         self.total[side] + max(1.0, max(contrib * deviation, 0.5)))
-                                                    self.limit[side] = max(1.0, max(contrib * deviation, 0.5))
+                                                    self.limit[side] = self.total[side] + max(1.0, max(contrib * deviation, 0.5))
                                                     self.cancel_orders(side)
                                             elif 0 < deviation < 0.01 \
                                                     and lastdev[side] < 0.01 \
@@ -382,6 +382,7 @@ class PyBot(ConnectionThread):
                                                     "increasing tier 1 %s limit of %s on %s from %.8f to %.8f",
                                                     side, self.unit, repr(self.exchange), self.total[side],
                                                     self.total[side] + self.limit[side])
+                                                self.limit[side] = self.total[side] + self.limit[side]
                                                 self.cancel_orders(side)
                                             lastdev[side] = deviation
                             self.place_orders()
