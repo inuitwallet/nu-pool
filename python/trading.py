@@ -208,7 +208,7 @@ class PyBot(ConnectionThread):
             bidprice = ceil(self.price * (1.0 - spread) * 10 ** 8) / float(
                 10 ** 8)  # truncate floating point precision after 8th position
             askprice = ceil(self.price * (1.0 + spread) * 10 ** 8) / float(10 ** 8)
-            if response['ask'] == None or response['ask'] > bidprice:
+            if response['ask'] is None or response['ask'] > bidprice:
                 self.place('bid', bidprice)
             else:
                 if 1.0 - response['ask'] / bidprice < 0.00425 - spread:
@@ -370,8 +370,8 @@ class PyBot(ConnectionThread):
                                                         "increasing tier 1 %s limit of %s on %s from %.8f to %.8f",
                                                         side, self.unit, repr(self.exchange), self.total[side],
                                                         self.total[side] + max(1.0, max(contrib * deviation, 0.5)))
-                                                    self.limit[side] = self.total[side] + max(1.0, max(contrib * deviation, 0.5))
                                                     self.cancel_orders(side)
+                                                    self.limit[side] = self.total[side] + max(1.0, max(contrib * deviation, 0.5))
                                             elif 0 < deviation < 0.01 \
                                                     and lastdev[side] < 0.01 \
                                                     and self.limit[side] < max(1.0, max(contrib * deviation, 0.5)) \
@@ -382,8 +382,8 @@ class PyBot(ConnectionThread):
                                                     "increasing tier 1 %s limit of %s on %s from %.8f to %.8f",
                                                     side, self.unit, repr(self.exchange), self.total[side],
                                                     self.total[side] + self.limit[side])
-                                                self.limit[side] = self.total[side] + self.limit[side]
                                                 self.cancel_orders(side)
+                                                self.limit[side] = self.total[side] + self.limit[side]
                                             lastdev[side] = deviation
                             self.place_orders()
                     else:
