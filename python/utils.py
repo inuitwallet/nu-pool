@@ -169,6 +169,9 @@ class PriceFeed():
               self.feed['btc'][2] = 2.0 / (float(ret['ask']) + float(ret['bid']))
             except:
               self.logger.error("unable to update price for BTC")
+              #TODO remove  this line when not testing
+              self.logger.info("set btc as we're testing")
+              self.feed['btc'][2] = 273.86
       elif unit == 'eur':
         try: # yahoo
           ret = json.loads(urllib2.urlopen(urllib2.Request('http://finance.yahoo.com/webservice/v1/symbols/allcurrencies/quote?format=json'), timeout = 3).read())

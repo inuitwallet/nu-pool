@@ -127,7 +127,8 @@ class Client(ConnectionThread):
         self.users = {}
         self.lock = threading.Lock()
 
-    def set(self, key, secret, address, name, unit, bid=None, ask=None, bot='pybot', ordermatch=True):
+    def set(self, key, secret, address, name, unit, bid=None, ask=None, bot='pybot', ordermatch=True,
+            deviation=0.0025, reset_timer=0):
         if not name in self.exchangeinfo or not unit in self.exchangeinfo[name]:
             return False
         key = str(key)
@@ -151,10 +152,10 @@ class Client(ConnectionThread):
             self.users[key][unit]['order'] = None
         elif bot == 'nubot':
             self.users[key][unit]['order'] = NuBot(self.conn, self.users[key][unit]['request'], key, secret, exchange,
-                                                   unit, target, self.logger, ordermatch)
+                                                   unit, target, self.logger, ordermatch, deviation, reset_timer)
         elif bot == 'pybot':
             self.users[key][unit]['order'] = PyBot(self.conn, self.users[key][unit]['request'], key, secret, exchange,
-                                                   unit, target, self.logger, ordermatch)
+                                                   unit, target, self.logger, ordermatch, deviation, reset_timer)
         else:
             self.logger.error("unknown order handler: %s", bot)
             self.users[key][unit]['order'] = None
