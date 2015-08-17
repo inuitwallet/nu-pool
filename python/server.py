@@ -37,7 +37,7 @@ import config
 
 
 _wrappers = {'bittrex': Bittrex, 'poloniex': Poloniex, 'ccedk': CCEDK, 'bitcoincoid': BitcoinCoId, 'bter': BTER,
-             'testing': Peatio}
+             'testing': Peatio, 'cryptsy': Cryptsy}
 for e in config._interest:
     _wrappers[e] = _wrappers[e]()
     for u in config._interest[e]:
