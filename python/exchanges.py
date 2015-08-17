@@ -321,7 +321,9 @@ class Cryptsy(Exchange):
     def create_request(self, unit, key=None, secret=None):
         if not secret:
             return None, None
-        request = {'method': 'myorders', 'marketid': self.get_market_id(unit, key, secret)}
+        request = {'method': 'myorders',
+                   'marketid': self.get_market_id(unit, key, secret),
+                   'nonce': self.nonce()}
         data = urllib.urlencode(request)
         sign = hmac.new(secret, data, hashlib.sha512).hexdigest()
         return request, sign
@@ -331,14 +333,15 @@ class Cryptsy(Exchange):
         ret = urllib2.urlopen(urllib2.Request('https://api.cryptsy.com/api',
                                               urllib.urlencode(data), headers), timeout=5)
         response = json.loads(ret.read())
+        print response
         if response['success'] == 0:
             return response
         return [{
                     'id': int(order['orderid']),
                     'price': float(order['price']),
                     'type': 'ask' if order['ordertype'] == 'Sell' else 'bid',
-                    'amount': float(order['amount']),
-                } for order in response]
+                    'amount': float(order['quantity']),
+                } for order in response['return']]
 
 
 class Poloniex(Exchange):
