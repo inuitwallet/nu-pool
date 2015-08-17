@@ -40,7 +40,7 @@ from trading import *
 from utils import *
 
 _wrappers = {'bittrex': Bittrex, 'poloniex': Poloniex, 'ccedk': CCEDK, 'bitcoincoid': BitcoinCoId, 'bter': BTER,
-             'testing': Peatio}
+             'testing': Peatio, 'cryptsy': Cryptsy}
 _mainlogger = None
 
 
