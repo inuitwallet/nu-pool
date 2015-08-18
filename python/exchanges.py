@@ -219,6 +219,7 @@ class Bittrex(Exchange):
 class Cryptsy(Exchange):
     def __init__(self):
         super(Cryptsy, self).__init__(0.002)
+        self.fee = 0.002
         self.market_codes = {}
         self.currency_codes = {}
         self.key = None
@@ -274,14 +275,14 @@ class Cryptsy(Exchange):
         response = self.post({'method': 'myorders',
                               'marketid': self.get_market_id(unit, key, secret)}, key,
                              secret)
-        if response['success'] == 0:
+        if int(response['success']) == 0:
             return response
         for order in response['return']:
             if side == 'all' or (side == 'bid' and order['ordertype'] == 'Buy') or (
                             side == 'ask' and order['ordertype'] == 'Sell'):
                 ret = self.post({'method': 'cancelorder', 'orderid': order['orderid']},
                                 key, secret)
-                if ret['success'] == 0:
+                if int(ret['success']) == 0:
                     if isinstance(response, list):
                         response = {'error': ""}
                     response['error'] += "," + ret['error']
@@ -291,16 +292,16 @@ class Cryptsy(Exchange):
         params = {'method': 'createorder',
                   'marketid': self.get_market_id(unit, key, secret),
                   'ordertype': 'Buy' if side == 'bid' else 'Sell',
-                  'quantity': amount,
+                  'quantity': (amount * 0.99725) if side =='bid' else amount,
                   'price': price}
         response = self.post(params, key, secret)
-        if response['success'] > 0:
+        if int(response['success']) > 0:
             response['id'] = int(response['orderid'])
         return response
 
     def get_balance(self, unit, key, secret):
         response = self.post({'method': 'getinfo'}, key, secret)
-        if response['success'] > 0:
+        if int(response['success']) > 0:
             response['balance'] = float(
                 response['return']['balances_available'][unit.upper()])
         return response
@@ -310,7 +311,7 @@ class Cryptsy(Exchange):
             unit,
             self.key,
             self.secret)}, self.key, self.secret)
-        if response['success'] > 0:
+        if int(response['success']) > 0:
             response.update({'bid': None, 'ask': None})
             if response['return']['buy']:
                 response['bid'] = float(response['return']['buy'][0][0])
@@ -333,15 +334,12 @@ class Cryptsy(Exchange):
         ret = urllib2.urlopen(urllib2.Request('https://api.cryptsy.com/api',
                                               urllib.urlencode(data), headers), timeout=5)
         response = json.loads(ret.read())
-        print response
-        if response['success'] == 0:
+        if int(response['success']) == 0:
             return response
-        return [{
-                    'id': int(order['orderid']),
-                    'price': float(order['price']),
-                    'type': 'ask' if order['ordertype'] == 'Sell' else 'bid',
-                    'amount': float(order['quantity']),
-                } for order in response['return']]
+        return [{'id': int(order['orderid']),
+                 'price': float(order['price']),
+                 'type': 'ask' if order['ordertype'] == 'Sell' else 'bid',
+                 'amount': float(order['quantity'])} for order in response['return']]
 
 
 class Poloniex(Exchange):
