@@ -128,7 +128,7 @@ class Client(ConnectionThread):
         self.lock = threading.Lock()
 
     def set(self, key, secret, address, name, unit, bid=None, ask=None, bot='pybot', ordermatch=True,
-            deviation=0.0025, reset_timer=0):
+            deviation=0.0025, reset_timer=0, offset=0.002):
         if not name in self.exchangeinfo or not unit in self.exchangeinfo[name]:
             return False
         key = str(key)
@@ -144,18 +144,25 @@ class Client(ConnectionThread):
         if unit in self.users[key]:
             self.shutdown(key, unit)
         self.users[key][unit] = {
-            'request': RequestThread(self.conn, key, secret, exchange, unit, address, self.sampling, cost, self.logger)}
+            'request': RequestThread(self.conn, key, secret, exchange, unit, address,
+                                     self.sampling, cost, self.logger)}
         self.users[key][unit]['request'].start()
         target = {'bid': self.exchangeinfo[name][unit]['bid']['target'],
                   'ask': self.exchangeinfo[name][unit]['ask']['target']}
         if not bot or bot == 'none':
             self.users[key][unit]['order'] = None
         elif bot == 'nubot':
-            self.users[key][unit]['order'] = NuBot(self.conn, self.users[key][unit]['request'], key, secret, exchange,
-                                                   unit, target, self.logger, ordermatch, deviation, reset_timer)
+            self.users[key][unit]['order'] = NuBot(self.conn,
+                                                   self.users[key][unit]['request'], key,
+                                                   secret, exchange, unit, target,
+                                                   self.logger, ordermatch, deviation,
+                                                   reset_timer, offset)
         elif bot == 'pybot':
-            self.users[key][unit]['order'] = PyBot(self.conn, self.users[key][unit]['request'], key, secret, exchange,
-                                                   unit, target, self.logger, ordermatch, deviation, reset_timer)
+            self.users[key][unit]['order'] = PyBot(self.conn,
+                                                   self.users[key][unit]['request'], key,
+                                                   secret, exchange, unit, target,
+                                                   self.logger, ordermatch, deviation,
+                                                   reset_timer, offset)
         else:
             self.logger.error("unknown order handler: %s", bot)
             self.users[key][unit]['order'] = None
@@ -326,7 +333,7 @@ if __name__ == "__main__":
                     key = user[3]
                     secret = user[4]
                     name = user[2].lower()
-                    if not name in _wrappers:
+                    if name not in _wrappers:
                         logger.error("unknown exchange: %s", user[2])
                         sys.exit(1)
                     exchange = _wrappers[name]
@@ -355,10 +362,16 @@ if __name__ == "__main__":
                     else:
                         bid = None
                         ask = None
-                    bot = 'pybot' if not 'trading' in configdata else configdata['trading']
-                    ordermatch = True if not 'ordermatch' in configdata else (
+                    bot = 'pybot' if 'trading' not in configdata else configdata[
+                        'trading']
+                    ordermatch = True if 'ordermatch' not in configdata else (
                         configdata['ordermatch'] in ['False', 'false', '0'])
-                    if 'server' in configdata:
+                    deviation = 0.0025 if 'deviation' not in configdata else \
+                        configdata['deviation']
+                    reset_timer = 0 if 'reset_timer' not in configdata else configdata[
+                        'reset_timer']
+                    offset = 0.002 if 'offset' not in configdata else configdata['offset']
+                    if 'server' not in configdata:
                         if 'apikey' in configdata:
                             if 'apisecret' in configdata:
                                 if 'address' in configdata:
@@ -369,7 +382,8 @@ if __name__ == "__main__":
                                                 client = Client(configdata['server'], logger)
                                                 client.set(configdata['apikey'], configdata['apisecret'],
                                                            configdata['address'], name, configdata['unit'].lower(), bid,
-                                                           ask, bot, ordermatch)
+                                                           ask, bot, ordermatch,
+                                                           deviation, reset_timer, offset)
                                             else:
                                                 logger.error("unknown exchange: %s", name)
                                         else:

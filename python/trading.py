@@ -24,30 +24,25 @@ OR OTHER DEALINGS IN THE SOFTWARE.
 
 import os
 import sys
-import time
-import json
-import urllib
-import urllib2
-import threading
 import subprocess
-import logging
 import tempfile
-import signal
 from math import ceil
 from utils import *
 
 
 class NuBot(ConnectionThread):
-    def __init__(self, conn, requester, key, secret, exchange, unit, target, logger=None, ordermatch=False,
-                 deviation=0.0025, reset_timer=0):
+    def __init__(self, conn, requester, key, secret, exchange, unit, target, logger=None,
+                 ordermatch=False, deviation=0.0025, reset_timer=0, offset=0.002):
         super(NuBot, self).__init__(conn, logger)
         self.requester = requester
         self.process = None
         self.unit = unit
+        self.target = target
         self.running = False
         self.exchange = exchange
         self.deviation = deviation
         self.reset_timer = reset_timer
+        self.offset = offset
         self.options = {
             'exchangename': repr(exchange),
             'apikey': key,
@@ -106,7 +101,7 @@ class NuBot(ConnectionThread):
 
 class PyBot(ConnectionThread):
     def __init__(self, conn, requester, key, secret, exchange, unit, target, logger=None, ordermatch=False,
-                 deviation=0.0025, reset_timer=0):
+                 deviation=0.0025, reset_timer=0, offset=0.002):
         super(PyBot, self).__init__(conn, logger)
         self.requester = requester
         self.ordermatch = ordermatch
@@ -121,6 +116,7 @@ class PyBot(ConnectionThread):
         self.lastlimit = {'bid': 0, 'ask': 0}
         self.deviation = deviation
         self.reset_timer = reset_timer
+        self.offset = offset
         if not hasattr(PyBot, 'lock'):
             PyBot.lock = {}
         if not repr(exchange) in PyBot.lock:
@@ -216,7 +212,7 @@ class PyBot(ConnectionThread):
             self.logger.error('unable to retrieve order book for %s on %s: %s', self.unit, repr(self.exchange),
                               response['error'])
         else:
-            spread = max(self.exchange.fee, 0.002)
+            spread = max(self.exchange.fee, float(self.offset))
             bidprice = ceil(self.price * (1.0 - spread) * 10 ** 8) / float(
                 10 ** 8)  # truncate floating point precision after 8th position
             askprice = ceil(self.price * (1.0 + spread) * 10 ** 8) / float(10 ** 8)
@@ -294,7 +290,7 @@ class PyBot(ConnectionThread):
         delay = 0.0
         while self.active:
             if float(time.time()) - float(reset_time) > (float(
-                    self.reset_timer) * 60 * 60) and float(reset_time) > 0:
+                    self.reset_timer) * 60 * 60) and float(self.reset_timer) > 0:
                 self.logger.info('reset timer has elapsed. will restart trading bot')
                 self.shutdown(True)
             try:
@@ -327,7 +323,7 @@ class PyBot(ConnectionThread):
                     efftime = curtime
                 else:
                     response = self.conn.get('price/' + self.unit, trials=3, timeout=10)
-                    if not 'error' in response:
+                    if 'error' not in response:
                         self.serverprice = response['price']
                         userprice = PyBot.pricefeed.price(self.unit)
                         if 1.0 - min(self.serverprice, userprice) / max(self.serverprice,
