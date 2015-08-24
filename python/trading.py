@@ -293,7 +293,8 @@ class PyBot(ConnectionThread):
         lastdev = {'bid': 1.0, 'ask': 1.0}
         delay = 0.0
         while self.active:
-            if float(time.time()) - float(reset_time) > (float(self.reset_timer) * 60 * 60):
+            if float(time.time()) - float(reset_time) > (float(
+                    self.reset_timer) * 60 * 60) and float(reset_time) > 0:
                 self.logger.info('reset timer has elapsed. will restart trading bot')
                 self.shutdown(True)
             try:
