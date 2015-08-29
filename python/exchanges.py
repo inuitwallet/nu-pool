@@ -284,45 +284,28 @@ class Cryptsy(Exchange):
         return response
 
     def get_fee(self, unit, side, amount, price, key, secret):
-        """
-        Method: calculatefees
-
-        Inputs:
-
-        ordertype	Order type you are calculating for (Buy/Sell)
-        quantity	Amount of units you are buying/selling
-        price	Price per unit you are buying/selling at
-        marketid	Market id of which market you're calculating fees for
-
-
-        Outputs:
-
-        fee	The that would be charged for provided inputs
-        net	The net total with fees
-        :return:
-        """
         params = {'method': 'calculatefees',
                   'ordertype': 'Buy' if side == 'bid' else 'Sell',
                   'quantity': amount,
                   'price': price,
                   'marketid': self.get_market_id(unit, key, secret)}
         response = self.post(params, key, secret)
-        print response
-        if int(response) == 0:
+        if int(response['success']) == 0:
             return self.fee
-        return response['return']['fee']
+        return (float(response['return']['fee']) / float(price)) / 100
 
     def place_order(self, unit, side, key, secret, amount, price):
         params = {'method': 'createorder',
                   'marketid': self.get_market_id(unit, key, secret),
                   'ordertype': 'Buy' if side == 'bid' else 'Sell',
                   'quantity':
-                      (amount - self.get_fee(unit, side, amount, price, key, secret)) if
+                      (str(float(amount) - float(self.get_fee(unit, side, amount,
+                                                              price, key, secret)))) if
                       side == 'bid' else amount,
                   'price': price}
         response = self.post(params, key, secret)
         if int(response['success']) > 0:
-            response['id'] = int(response['return']['orderid'])
+            response['id'] = int(response['orderid'])
         return response
 
     def get_balance(self, unit, key, secret):
