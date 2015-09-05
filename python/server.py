@@ -138,19 +138,24 @@ class NuRPC():
             self.logger.error("NuRPC: unable to send payout (exception caught): %s", sys.exc_info()[1])
         return False
 
-    def liquidity(self, bid, ask):
+    def liquidity(self, bid, ask, identifier):
         """
         Submit liquidity info through the rpc connection
         :param bid:
         :param ask:
         :return:
+
+        tier:pair:exchange:botsessionid
+
+        Example of a valid identifier : 2:BTCNBT:ccedk:nubotsession3
         """
+        print bid, ask, identifier
         try:
             self.rpc.liquidityinfo('B', bid, ask, self.address)
             self.logger.info("successfully sent liquidity: buy: %.8f sell: %.8f", bid, ask)
             return True
         except AttributeError:
-            self.logger.error('NuRPC: client not initialized')
+            self.logger.error('NuRPC: liquidity client not initialized')
         except self.JSONRPCException as e:
             self.logger.error('NuRPC: unable to send liquidity: %s', e.error['message'])
         except:
@@ -596,17 +601,32 @@ def pay(nud):
 
 
 def submit(nud):
-    curliquidity = [0, 0]
+    curliquidity = {}
     lock.acquire()
     for user in keys:
         for unit in keys[user]:
+            exchange = repr(keys[user][unit].exchange)
+            if exchange not in curliquidity:
+                curliquidity[exchange] = {}
+            if unit not in curliquidity[exchange]:
+                curliquidity[exchange][unit] = [0, 0]
             for s in xrange(config._sampling):
-                curliquidity[0] += sum([order[1] for order in keys[user][unit].liquidity['bid'][-(s + 1)]])
-                curliquidity[1] += sum([order[1] for order in keys[user][unit].liquidity['ask'][-(s + 1)]])
+                curliquidity[exchange][unit][0] += sum([order[1] for order in
+                                                        keys[user][unit].liquidity[
+                                                            'bid'][-(s + 1)]])
+                curliquidity[exchange][unit][1] += sum([order[1] for order in
+                                                        keys[user][unit].liquidity[
+                                                            'ask'][-(s + 1)]])
     lock.release()
-    curliquidity = [curliquidity[0] / float(config._sampling), curliquidity[1] / float(config._sampling)]
-    _liquidity.append(curliquidity)
-    nud.liquidity(curliquidity[0], curliquidity[1])
+    for exchange in curliquidity:
+        for unit in curliquidity[exchange]:
+            liquidity = [curliquidity[exchange][unit][0] / float(config._sampling),
+                         curliquidity[exchange][unit][1] / float(config._sampling)]
+            _liquidity.append(liquidity)
+            identifier = "1:{0}:{1}:{2}".format('NBT'+unit.upper(),
+                                                exchange,
+                                                config._pool_name)
+            nud.liquidity(liquidity[0], liquidity[1], identifier)
 
 
 def sync():
@@ -785,7 +805,7 @@ while True:
         if not master:
             _round += 1
             # send liquidity
-            if curtime - lastsubmit >= 60:
+            if curtime - lastsubmit >= 5:
                 submit(nud)
                 lastsubmit = curtime
             # credit requests
