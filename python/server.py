@@ -149,10 +149,10 @@ class NuRPC():
 
         Example of a valid identifier : 2:BTCNBT:ccedk:nubotsession3
         """
-        print bid, ask, identifier
         try:
-            self.rpc.liquidityinfo('B', bid, ask, self.address)
-            self.logger.info("successfully sent liquidity: buy: %.8f sell: %.8f", bid, ask)
+            self.rpc.liquidityinfo('B', bid, ask, self.address, identifier)
+            self.logger.info("successfully sent liquidity: buy: {0} sell: {1} "
+                             "identifier: {2}".format(bid, ask, identifier))
             return True
         except AttributeError:
             self.logger.error('NuRPC: liquidity client not initialized')
