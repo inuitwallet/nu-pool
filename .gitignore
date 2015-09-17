@@ -56,3 +56,13 @@ docs/_build/
 
 # PyBuilder
 target/
+
+#Pool stuff
+.idea/
+config.py
+python/config.py
+python/logs
+run_test_client.py
+test.conf.json
+test_ground.py
+
