@@ -53,6 +53,39 @@ class Exchange(object):
         return n
 
 
+class HitBTC(Exchange):
+
+    def __init__(self):
+        super(HitBTC, self).__init__(0.1)
+
+    def __repr__(self):
+        return "hitbtc"
+
+    def adjust(self):
+        pass
+
+    def post(self, params, key, secret):
+        request = {'nonce': self.nonce(), 'apikey': key}
+        request.update(params)
+        method = request['method']
+        del request['method']
+        data = 'http://api.hitbtc.com/api/1/{}?{}'.format(method,
+                                                          urllib.urlencode(request))
+        sign = hmac.new(secret, data, hashlib.sha512).hexdigest().lowercase()
+        headers = {'X-Signature': sign}
+        return json.loads(urllib.urlopen(urllib2.Request(
+            url='http://api.hitbtc.com/api/1/{}'.format(method), data=data,
+            headers=headers)).read())
+
+    def get(self, method, params, key, secret):
+        request = {'nonce': self.nonce()}
+        request.update(params)
+        data = 'http://api.hitbtc.com/api/1/{}?{}'.format(method,
+                                                        urllib.urlencode(request))
+        sign = hmac.new(secret, data, hashlib.sha512).hexdigest().lowercase()
+        headers = ''
+
+
 class Bittrex(Exchange):
     def __init__(self):
         super(Bittrex, self).__init__(0.0025)
@@ -303,6 +336,7 @@ class Cryptsy(Exchange):
                                                               price, key, secret)))) if
                       side == 'bid' else amount,
                   'price': price}
+        print '>>Placing order with the following parameters {}'.format(params)
         response = self.post(params, key, secret)
         if int(response['success']) > 0:
             response['id'] = int(response['orderid'])
