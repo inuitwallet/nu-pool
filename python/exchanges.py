@@ -328,12 +328,12 @@ class Cryptsy(Exchange):
         return (float(response['return']['fee']) / float(price)) / 100
 
     def place_order(self, unit, side, key, secret, amount, price):
+        fudge = 0.99
         params = {'method': 'createorder',
                   'marketid': self.get_market_id(unit, key, secret),
                   'ordertype': 'Buy' if side == 'bid' else 'Sell',
                   'quantity':
-                      (str(float(amount) - float(self.get_fee(unit, side, amount,
-                                                              price, key, secret)))) if
+                      (str((float(amount) - float(self.get_fee(unit, side, amount, price, key, secret))) * fudge)) if
                       side == 'bid' else amount,
                   'price': price}
         print '>>Placing order with the following parameters {}'.format(params)
