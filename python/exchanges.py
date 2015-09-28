@@ -351,6 +351,111 @@ class Cryptsy(Exchange):
                  'amount': float(order['quantity'])} for order in response['return']]
 
 
+class SouthXChange(Exchange):
+    def __init__(self):
+        super(SouthXChange, self).__init__(0.002)
+
+    def __repr__(self):
+        return 'southxchange'
+
+    def adjust(self, error):
+        pass
+
+    def post(self, method, key, secret, params=None):
+        data = {'nonce': self.nonce(), 'key': key}
+        if params is not None:
+            data.update(params)
+        data = json.dumps(data)
+        sign = hmac.new(secret, data, hashlib.sha512).hexdigest()
+        headers = {'Hash': sign, 'Content-Type': 'application/json'}
+        url = 'https://www.southxchange.com/api/{0}/'.format(method)
+        print data
+        try:
+            request = urllib2.Request(url=url, data=data, headers=headers)
+        except urllib2.HTTPError as e:
+            if e.code == 500:
+                return {'error': 'API returned 500 error'}
+            return {'error': 'API error'}
+        return json.loads(urllib2.urlopen(request).read())
+
+    def get(self, method, unit=None):
+        url = 'https://www.southxchange.com/api/{0}/'.format(method)
+        if unit is not None:
+            url += unit.upper() + "/NBT"
+        try:
+            request = urllib2.Request(url=url)
+        except urllib2.HTTPError as e:
+            if e.code == 500:
+                return {'error': 'API returned 500 error'}
+            return {'error': 'API error'}
+        return json.loads(urllib2.urlopen(request).read())
+
+    def get_price(self, unit):
+        response = self.get('price', unit)
+        if 'error' not in response:
+            response.update({'bid': None, 'ask': None})
+            response['bid'] = response['Bid']
+            response['ask'] = response['Ask']
+        return response
+
+    def place_order(self, unit, side, key, secret, amount, price):
+        method = 'placeOrder'
+        params = {'listCurrency': str(unit.upper()),
+                  'referenceCurrency': 'NBT',
+                  'type': 'buy' if side == 'bid' else 'sell',
+                  'amount': amount,
+                  'limitPrice': price}
+        print '>>Order {}'.format(params)
+        return self.post(method, key, secret, params)
+
+    def cancel_orders(self, unit, side, key, secret):
+        response = self.post('listOrders', key, secret)
+        if 'error' in response:
+            return response
+        for order in response:
+            if side == 'all' or (side == 'bid' and order['Type'] == 'buy') or \
+                    (side == 'ask' and order['Type'] == 'sell'):
+                if order['ListingCurrency'] == unit.upper() and \
+                                order['ReferenceCurrency'] == 'NBT':
+                    ret = self.post('cancelOrder', key, secret, {'orderCode': order['Code']})
+                    if 'error' in ret:
+                        if isinstance(response, list):
+                            response = {'error': ""}
+                    response['error'] += "," + ret['error']
+        return response
+
+    def get_balance(self, unit, key, secret):
+        response = self.post('listBalances', key, secret)
+        if 'error' in response:
+            response = []
+        unit = unit.upper()
+        print 'balance {}'.format(response)
+        for balance in response:
+            if balance['Currency'] == unit:
+                return {'balance': balance['Available']}
+        return {'balance': 0}
+
+    def create_request(self, unit, key=None, secret=None):
+        if not secret and not key:
+            return None, None
+        request = {'nonce': self.nonce(), 'key': key}
+        data = json.dumps(request)
+        sign = hmac.new(secret, data, hashlib.sha512).hexdigest()
+        return {'data': data}, sign
+
+    def validate_request(self, key, unit, data, sign):
+        url = 'https://www.southxchange.com/api/listOrders'
+        headers = {'Hash': sign, 'Content-Type': 'application/json'}
+        request = urllib2.Request(url=url, data=data['data'], headers=headers)
+        response = json.loads(urllib2.urlopen(request).read())
+        return [{
+                    'id': int(order['Code']),
+                    'price': float(order['LimitPrice']),
+                    'type': 'ask' if order['Type'] == 'sell' else 'bid',
+                    'amount': float(order['Amount'])
+                } for order in response]
+
+
 class Poloniex(Exchange):
     def __init__(self):
         super(Poloniex, self).__init__(0.002)
