@@ -327,19 +327,21 @@ class Cryptsy(Exchange):
             return self.fee
         return (float(response['return']['fee']) / float(price)) / 100
 
-    def place_order(self, unit, side, key, secret, amount, price):
-        fudge = 0.99
+    def place_order(self, unit, side, key, secret, amount, price, fudge=1.00):
         params = {'method': 'createorder',
                   'marketid': self.get_market_id(unit, key, secret),
                   'ordertype': 'Buy' if side == 'bid' else 'Sell',
                   'quantity':
-                      (str((float(amount) - float(self.get_fee(unit, side, amount, price, key, secret))) * fudge)) if
-                      side == 'bid' else amount,
+                      (str((float(amount) - float(self.get_fee(unit, side, amount,
+                                                               price, key, secret)))
+                           * fudge)) if side == 'bid' else amount,
                   'price': price}
         print '>>Placing order with the following parameters {}'.format(params)
         response = self.post(params, key, secret)
         if int(response['success']) > 0:
             response['id'] = int(response['orderid'])
+        elif 'in account to complete this order.' in response['error']:
+            self.place_order(unit, side, key, secret, amount, price, 0.99)
         return response
 
     def get_balance(self, unit, key, secret):
