@@ -400,11 +400,11 @@ class SouthXChange(Exchange):
 
     def place_order(self, unit, side, key, secret, amount, price):
         method = 'placeOrder'
-        params = {'listCurrency': str(unit.upper()),
+        params = {'listCurrency': unit.upper(),
                   'referenceCurrency': 'NBT',
                   'type': 'buy' if side == 'bid' else 'sell',
                   'amount': amount,
-                  'limitPrice': price}
+                  'limitPrice': round(float(price), 8)}
         print '>>Order {}'.format(params)
         return self.post(method, key, secret, params)
 
