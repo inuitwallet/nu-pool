@@ -793,7 +793,8 @@ while True:
             for unit in keys[user]:
                 keys[user][unit].finish()
                 active = active or keys[user][unit].active
-            if active: _active_users += 1
+            if active:
+                _active_users += 1
         lock.release()
 
         # create checkpoints
@@ -836,6 +837,7 @@ while True:
         if not master:
             time.sleep(max(float(60 / config._sampling) - time.time() + curtime, 0))
     except Exception as e:
-        logger.error('exception caught in main loop: %s', sys.exc_info()[1])
+        logger.error('exception caught in main loop: {} : {}'.format(sys.exc_info()[1],
+                                                                     e.message))
         httpd.socket.close()
         raise
