@@ -30,6 +30,7 @@ import os
 from math import ceil
 from thread import start_new_thread
 from logging.handlers import TimedRotatingFileHandler
+import traceback
 
 from exchanges import *
 from utils import *
@@ -840,4 +841,5 @@ while True:
         logger.error('exception caught in main loop: {} : {}'.format(sys.exc_info()[1],
                                                                      e.message))
         httpd.socket.close()
+        traceback.print_last()
         raise
