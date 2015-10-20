@@ -540,6 +540,7 @@ class Poloniex(Exchange):
 
 class CCEDK(Exchange):
     def __init__(self):
+        print 'CCEDK init'
         super(CCEDK, self).__init__(0.002)
         self.pair_id = {}
         self.currency_id = {}
@@ -573,6 +574,7 @@ class CCEDK(Exchange):
         return "ccedk"
 
     def nonce(self, factor=1.0):
+        print 'CCEDK nonce'
         n = int(time.time() + self._shift)
         if n == self._nonce:
             n = self._nonce + 1
@@ -580,6 +582,7 @@ class CCEDK(Exchange):
         return n
 
     def adjust(self, error):
+        print 'CCEDK adjust'
         if "incorrect range" in error:  # (TODO: regex)
             if ':' in error:
                 error = error.split(':')[1].strip()
@@ -604,6 +607,7 @@ class CCEDK(Exchange):
             self._shift += random.randrange(-10, 10)
 
     def post(self, method, params, key, secret):
+        print 'CCEDK post'
         request = {'nonce': self.nonce()}  # TODO: check for unique nonce
         request.update(params)
         data = urllib.urlencode(request)
@@ -616,6 +620,7 @@ class CCEDK(Exchange):
         return response
 
     def cancel_orders(self, unit, side, key, secret):
+        print 'CCEDK cancel_orders'
         response = self.post('order/list', {}, key, secret)
         if not response['response'] or not response['response']['entities']:
             return response
@@ -632,6 +637,7 @@ class CCEDK(Exchange):
         return response
 
     def place_order(self, unit, side, key, secret, amount, price):
+        print 'CCEDK place_order'
         params = {"type": 'buy' if side == 'bid' else 'sell',
                   "price": price,
                   "pair_id": int(self.pair_id[unit.lower()]),
@@ -644,6 +650,7 @@ class CCEDK(Exchange):
         return response
 
     def get_balance(self, unit, key, secret):
+        print 'CCEDK get_balance'
         params = {"currency_id": self.currency_id[unit.lower()]}
         response = self.post('balance/info', params, key, secret)
         if response['errors'] is True:
@@ -653,6 +660,7 @@ class CCEDK(Exchange):
         return response
 
     def get_price(self, unit):
+        print 'CCEDK get_price'
         url = 'https://www.ccedk.com/api/v1/orderbook/info?' + urllib.urlencode({'pair_id': self.pair_id[unit.lower()]})
         response = json.loads(urllib2.urlopen(urllib2.Request(url), timeout=5).read())
         if response['errors'] is True:
@@ -666,6 +674,7 @@ class CCEDK(Exchange):
         return response
 
     def create_request(self, unit, key=None, secret=None):
+        print 'CCEDK create_request'
         if not secret:
             return None, None
         request = {'nonce': self.nonce()}
@@ -674,6 +683,7 @@ class CCEDK(Exchange):
         return request, sign
 
     def validate_request(self, key, unit, data, sign):
+        print 'CCEDK validate_request'
         headers = {"Content-type": "application/x-www-form-urlencoded", "Key": key, "Sign": sign}
         url = 'https://www.ccedk.com/api/v1/order/list'
         response = json.loads(urllib2.urlopen(urllib2.Request(url, urllib.urlencode(data), headers), timeout=5).read())

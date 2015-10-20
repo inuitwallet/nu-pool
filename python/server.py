@@ -460,6 +460,7 @@ def checkpoints(params):
 
 
 def credit():
+    print 'starting credit'
     for name in config._interest:
         for unit in config._interest[name]:
             users = [k for k in keys if unit in keys[k] and repr(keys[k][unit].exchange) == name]
@@ -564,6 +565,7 @@ def credit():
                                 keys[user][unit].credits[side][sample][2] = {'amount': volume[2][user], 'cost': 0.0}
                                 config._interest[name][unit][side]['orders'][sample].append(
                                     {'amount': volume[2][user], 'cost': 0.0})
+    print 'finished credit'
 
 
 def pay(nud):
@@ -838,8 +840,7 @@ while True:
         if not master:
             time.sleep(max(float(60 / config._sampling) - time.time() + curtime, 0))
     except Exception as e:
-        logger.error('exception caught in main loop: {} : {}'.format(sys.exc_info()[1],
-                                                                     e.message))
+        logger.error('exception caught in main loop: {}'.format(e.message))
+        traceback.print_stack()
         httpd.socket.close()
-        traceback.print_last()
         raise
