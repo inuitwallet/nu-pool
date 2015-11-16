@@ -369,7 +369,6 @@ class SouthXChange(Exchange):
         sign = hmac.new(secret, data, hashlib.sha512).hexdigest()
         headers = {'Hash': sign, 'Content-Type': 'application/json'}
         url = 'https://www.southxchange.com/api/{0}/'.format(method)
-        print data
         try:
             request = urllib2.Request(url=url, data=data, headers=headers)
         except urllib2.HTTPError as e:
@@ -400,21 +399,24 @@ class SouthXChange(Exchange):
 
     def place_order(self, unit, side, key, secret, amount, price):
         method = 'placeOrder'
-        params = {'listCurrency': unit.upper(),
+        params = {'listingCurrency': unit.upper(),
                   'referenceCurrency': 'NBT',
-                  'type': 'buy' if side == 'bid' else 'sell',
-                  'amount': amount,
-                  'limitPrice': round(float(price), 8)}
-        print '>>Order {}'.format(params)
-        return self.post(method, key, secret, params)
+                  'type': 'sell' if side == 'bid' else 'buy',
+                  'amount': (round(float(amount) * float(price), 4)) if side == 'bid'
+                  else (round(float(amount) / float(price), 4)),
+                  'limitPrice': round(1 / float(price), 4)}
+        response = self.post(method, key, secret, params)
+        if 'error' in response:
+            return response
+        return {'id': response}
 
     def cancel_orders(self, unit, side, key, secret):
         response = self.post('listOrders', key, secret)
         if 'error' in response:
             return response
         for order in response:
-            if side == 'all' or (side == 'bid' and order['Type'] == 'buy') or \
-                    (side == 'ask' and order['Type'] == 'sell'):
+            if side == 'all' or (side == 'bid' and order['Type'] == 'sell') or \
+                    (side == 'ask' and order['Type'] == 'buy'):
                 if order['ListingCurrency'] == unit.upper() and \
                                 order['ReferenceCurrency'] == 'NBT':
                     ret = self.post('cancelOrder', key, secret, {'orderCode': order['Code']})
@@ -422,6 +424,7 @@ class SouthXChange(Exchange):
                         if isinstance(response, list):
                             response = {'error': ""}
                     response['error'] += "," + ret['error']
+        print response
         return response
 
     def get_balance(self, unit, key, secret):
@@ -429,7 +432,6 @@ class SouthXChange(Exchange):
         if 'error' in response:
             response = []
         unit = unit.upper()
-        print 'balance {}'.format(response)
         for balance in response:
             if balance['Currency'] == unit:
                 return {'balance': balance['Available']}
@@ -449,10 +451,12 @@ class SouthXChange(Exchange):
         request = urllib2.Request(url=url, data=data['data'], headers=headers)
         response = json.loads(urllib2.urlopen(request).read())
         return [{
-                    'id': int(order['Code']),
-                    'price': float(order['LimitPrice']),
-                    'type': 'ask' if order['Type'] == 'sell' else 'bid',
-                    'amount': float(order['Amount'])
+                    'id': order['Code'],
+                    'price': round(1 / float(order['LimitPrice']), 8),
+                    'type': 'bid' if order['Type'] == 'sell' else 'ask',
+                    'amount': round(float(order['Amount']) * float(order['LimitPrice']),
+                                    8) if order['Type'] == 'sell' else round(float(
+                                    order['Amount']) / float(order['LimitPrice']), 8)
                 } for order in response]
 
 
